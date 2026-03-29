@@ -297,6 +297,29 @@ async function setupDatabase() {
   try {
     console.log("🔧 Starting database setup...");
 
+    // Check if permissions column exists in users table
+    const permissionsCheck = await pool.query(`
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_name = 'users' AND column_name = 'permissions'
+    `);
+
+    if (permissionsCheck.rows.length === 0) {
+      console.log("🔄 Running migration: Adding permissions field...");
+      // Add permissions column if it doesn't exist
+      await pool.query(`
+        DO $$ 
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_name='users' AND column_name='permissions'
+          ) THEN
+            ALTER TABLE users ADD COLUMN permissions JSONB DEFAULT '[]';
+          END IF;
+        END $$;
+      `);
+      console.log("✅ Permissions field added");
+    }
+
     // Check if tables exist
     const tablesCheck = await pool.query(`
       SELECT table_name 
