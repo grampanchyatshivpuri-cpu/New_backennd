@@ -5,6 +5,30 @@ const compression = require("compression");
 const morgan = require("morgan");
 require("dotenv").config();
 
+// Validate essential environment variables
+const validateEnvironment = () => {
+  const required = ["DATABASE_URL", "SUPABASE_URL", "SUPABASE_SERVICE_KEY"];
+  const missing = required.filter((env) => !process.env[env]);
+
+  if (missing.length > 0) {
+    console.error("\n❌ Missing required environment variables:");
+    missing.forEach((env) => console.error(`   - ${env}`));
+    console.error(
+      "\n⚠️  Please configure these variables in your .env file or deployment platform"
+    );
+    console.error(
+      "📖 See RENDER_DEPLOYMENT.md for setup instructions\n"
+    );
+    
+    if (process.env.NODE_ENV === "production") {
+      console.error("🛑 Cannot start server in production without all required variables");
+      process.exit(1);
+    }
+  }
+};
+
+validateEnvironment();
+
 const app = express();
 
 // 1. CORS Middleware FIRST
@@ -23,7 +47,9 @@ app.use(
         allowedOrigins.includes("*") ||
         origin.endsWith(".gpkarvat.in") ||
         origin.endsWith(".gpkahir.in") ||
-        /^http:\/\/localhost:\d+$/.test(origin); // Dynamic: Allow any localhost port in dev
+        origin.endsWith(".gpshivpuri.in") ||
+        /^http:\/\/localhost:\d+$/.test(origin) ||
+        /^https:\/\/(www\.)?gpshivpuri\.in/.test(origin); // Allow gpshivpuri.in and subdomains
                        
       if (isAllowed) {
         callback(null, true);
@@ -60,16 +86,21 @@ const setupDatabase = require("./scripts/setupDatabase");
 
 // Test connections and auto-setup database on startup
 (async () => {
-  console.log("🚀 Starting Gram Panchayat Backend...");
+  console.log("\n🚀 Starting Gram Panchayat Backend...");
+  console.log(`📡 Environment: ${process.env.NODE_ENV || "development"}`);
+  console.log(`🌐 API URL: http://${process.env.HOST || "0.0.0.0"}:${process.env.PORT || 5000}/api\n`);
 
   const supabaseOk = await testSupabase();
   const dbOk = await testDB();
 
   // If PostgreSQL is not connected, exit
   if (!dbOk) {
-    console.error("❌ PostgreSQL connection failed - cannot continue");
+    console.error("\n❌ PostgreSQL connection failed - cannot continue");
     if (process.env.NODE_ENV === "production") {
+      console.error("🛑 Exiting server...\n");
       process.exit(1);
+    } else {
+      console.warn("⚠️  Continuing in development mode without database\n");
     }
     return;
   }
@@ -77,13 +108,13 @@ const setupDatabase = require("./scripts/setupDatabase");
   // Auto-setup database (creates tables and admin if not exists)
   // This runs even if Supabase check fails (tables might not exist yet)
   try {
-    console.log("\n🔧 Running auto-setup...");
+    console.log("🔧 Running auto-setup...");
     await setupDatabase();
     console.log("✅ Auto-setup completed\n");
 
     // Test Supabase again after table creation
     if (!supabaseOk) {
-      console.log("🔄 Retesting Supabase connection...");
+      console.log("🔄 Retesting Supabase connection after auto-setup...");
       const supabaseRetry = await testSupabase();
       if (supabaseRetry) {
         console.log("✅ Supabase connection successful after setup\n");
