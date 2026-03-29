@@ -79,7 +79,83 @@ app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-// Database Connection and Auto-Setup
+// Import Routes FIRST (before database setup)
+const authRoutes = require("./routes/auth");
+const usersRoutes = require("./routes/users");
+const representativesRoutes = require("./routes/representatives");
+const documentsRoutes = require("./routes/documents");
+const certificatesRoutes = require("./routes/certificates");
+const imagesRoutes = require("./routes/images");
+const heroImagesRoutes = require("./routes/heroImages");
+const infrastructureRoutes = require("./routes/infrastructure");
+const historicalRoutes = require("./routes/historical");
+const grampanchayatRoutes = require("./routes/grampanchayat");
+const websiteDataRoutes = require("./routes/websiteData");
+const announcementsRoutes = require("./routes/announcements");
+const taxPaymentRoutes = require("./routes/taxPayment");
+const projectsRoutes = require("./routes/projects");
+
+// Health Check Routes (Available immediately)
+app.get("/", (req, res) => {
+  res.json({
+    status: "OK",
+    message: "Gram Panchayat API",
+    version: "1.0.0",
+    endpoints: {
+      health: "/api/health",
+      auth: "/api/auth",
+      representatives: "/api/representatives",
+      certificates: "/api/certificates",
+      images: "/api/images",
+      announcements: "/api/announcements",
+      projects: "/api/projects",
+    },
+  });
+});
+
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "OK",
+    message: "Gram Panchayat API is running",
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// API Routes
+app.use("/api/auth", authRoutes);
+app.use("/api/users", usersRoutes);
+app.use("/api/representatives", representativesRoutes);
+app.use("/api/documents", documentsRoutes);
+app.use("/api/certificates", certificatesRoutes);
+app.use("/api/images", imagesRoutes);
+app.use("/api/hero-images", heroImagesRoutes);
+app.use("/api/infrastructure", infrastructureRoutes);
+app.use("/api/historical", historicalRoutes);
+app.use("/api/grampanchayat", grampanchayatRoutes);
+app.use("/api/website", websiteDataRoutes);
+app.use("/api/announcements", announcementsRoutes);
+app.use("/api/tax-payment", taxPaymentRoutes);
+app.use("/api/projects", projectsRoutes);
+
+// Error Handler
+app.use((err, req, res, next) => {
+  console.error("Error:", err.stack);
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || "Internal Server Error",
+    ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
+  });
+});
+
+// 404 Handler
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: "Route not found",
+  });
+});
+
+// Database Connection and Auto-Setup (run after routes are loaded)
 const { testConnection: testSupabase } = require("./config/supabase");
 const { testConnection: testDB } = require("./config/database");
 const setupDatabase = require("./scripts/setupDatabase");
@@ -134,82 +210,6 @@ const setupDatabase = require("./scripts/setupDatabase");
     }
   }
 })();
-
-// Import Routes
-const authRoutes = require("./routes/auth");
-const usersRoutes = require("./routes/users");
-const representativesRoutes = require("./routes/representatives");
-const documentsRoutes = require("./routes/documents");
-const certificatesRoutes = require("./routes/certificates");
-const imagesRoutes = require("./routes/images");
-const heroImagesRoutes = require("./routes/heroImages");
-const infrastructureRoutes = require("./routes/infrastructure");
-const historicalRoutes = require("./routes/historical");
-const grampanchayatRoutes = require("./routes/grampanchayat");
-const websiteDataRoutes = require("./routes/websiteData");
-const announcementsRoutes = require("./routes/announcements");
-const taxPaymentRoutes = require("./routes/taxPayment");
-const projectsRoutes = require("./routes/projects");
-
-// API Routes
-app.use("/api/auth", authRoutes);
-app.use("/api/users", usersRoutes);
-app.use("/api/representatives", representativesRoutes);
-app.use("/api/documents", documentsRoutes);
-app.use("/api/certificates", certificatesRoutes);
-app.use("/api/images", imagesRoutes);
-app.use("/api/hero-images", heroImagesRoutes);
-app.use("/api/infrastructure", infrastructureRoutes);
-app.use("/api/historical", historicalRoutes);
-app.use("/api/grampanchayat", grampanchayatRoutes);
-app.use("/api/website", websiteDataRoutes);
-app.use("/api/announcements", announcementsRoutes);
-app.use("/api/tax-payment", taxPaymentRoutes);
-app.use("/api/projects", projectsRoutes);
-
-// Health Check
-app.get("/", (req, res) => {
-  res.json({
-    status: "OK",
-    message: "Gram Panchayat API",
-    version: "1.0.0",
-    endpoints: {
-      health: "/api/health",
-      auth: "/api/auth",
-      representatives: "/api/representatives",
-      certificates: "/api/certificates",
-      images: "/api/images",
-      announcements: "/api/announcements",
-      projects: "/api/projects",
-    },
-  });
-});
-
-app.get("/api/health", (req, res) => {
-  res.json({
-    status: "OK",
-    message: "Gram Panchayat API is running",
-    timestamp: new Date().toISOString(),
-  });
-});
-
-// Error Handler
-app.use((err, req, res, next) => {
-  console.error("Error:", err.stack);
-  res.status(err.status || 500).json({
-    success: false,
-    message: err.message || "Internal Server Error",
-    ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
-  });
-});
-
-// 404 Handler
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: "Route not found",
-  });
-});
 
 const PORT = process.env.PORT || 5000;
 const HOST = process.env.HOST || "0.0.0.0";
