@@ -66,6 +66,15 @@ app.use(
   })
 );
 
+// Add CORS headers for Supabase storage images
+app.use((req, res, next) => {
+  // Allow images from Supabase storage to be loaded on any origin
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  next();
+});
+
 // 2. Helmet and other middleware
 app.use(
   helmet({
